@@ -51,7 +51,7 @@ class Inventory:
             print("Error: File not found. Starting with an empty inventory.")
             self.data = []
 
-        print(f"Welcome to the inventory management program.\nType 'help' for a list of commands.\nCurrent inventory file: {os.path.basename(self.file)}")
+        print(f"Welcome to the inventory management program.\nType 'help' for a list of commands.\nCurrent inventory file: {os.path.basename(self.file)[:-5]}")
 
     def run(self) -> None:
         while self.running:
@@ -69,9 +69,24 @@ class Inventory:
 
             elif user_input == "delete":
 
+                listdir = os.listdir(self.path) 
+
+                if not len(listdir) > 2:
+                    print("Error: No file can currently be deleted (Not enough files available)")
+                    continue
+
+                count = 0
+                text = "\n"
+
                 for obj in os.listdir(self.path):
-                    if obj.endswith(".json") and obj not in {"default.json", "params.json"}:
-                        print(f"  {obj}")
+                    if obj.endswith(".json") and not obj in {"params.json", "default.json"}:
+                        text += f"  {obj[:-5]}"
+                        count += 1
+                        if count == 4:
+                            count = 0
+                            text += "\n"
+
+                print(text)
 
                 name = input(">Enter the name of the inventory file to delete: ")
                 self.delete_file(name)
@@ -100,7 +115,7 @@ class Inventory:
                     except PermissionError:
                         print("Error: couldn't delete evert file, check your permission")
 
-                elif command:
+                elif len(command) > 0:
                     self.delete_file(command)
 
             elif user_input[0] in "+-":
@@ -237,9 +252,18 @@ class Inventory:
             
             elif user_input == "switch":
 
+                count = 0
+                text = "\n"
+
                 for obj in os.listdir(self.path):
-                    if obj.endswith(".json") and obj not in {"default.json", "params.json"}:
-                        print(f"  {obj}")
+                    if obj.endswith(".json") and obj != "params.json":
+                        text += f"  {obj[:-5]}"
+                        count += 1
+                        if count == 4:
+                            count = 0
+                            text += "\n"
+
+                print(text)
 
                 name = input(">Enter the name of the inventory file to switch to: ")
                 self.switch(name)
@@ -250,7 +274,7 @@ class Inventory:
                     self.switch(command)
 
             elif user_input in {"c", "current"}:
-                print(f"Current inventory file: {os.path.basename(self.file)}")
+                print(f"Current inventory file: {os.path.basename(self.file)[:-5]}")
 
             elif user_input == "file":
                 name = input(">Enter the new file name: ")
@@ -259,27 +283,26 @@ class Inventory:
             
             elif user_input.startswith("f "):
                 command = user_input[2:].strip()
-                if command:
-                    self.create_file(command)
-                else:
-                    print("Error: Please provide a valid file name.")
+
+                self.create_file(command)         
 
             else:
                 _input = self.find_item(user_input)
 
-                if not _input:
-                    count = 0
-                    user_input = user_input.lower()
-
-                    for obj in self.data:
-                        if user_input in obj["tags"].split("/"):
-                            print(f"Item: {obj['name']}, Tags: {obj['tags']}, Quantity: {obj['quantity']}")
-                            count +=1
-
-                    if count == 0:
-                        print(f"Error: Item or tag '{user_input}' not found.")
-                else:
+                if _input:
                     print(f"Item: {_input['name']}, Tags: {_input['tags']}, Quantity: {_input['quantity']}")
+                    continue
+
+                count = 0
+                user_input = user_input.lower()
+
+                for obj in self.data:
+                    if user_input in obj["tags"].split("/"):
+                        print(f"Item: {obj['name']}, Tags: {obj['tags']}, Quantity: {obj['quantity']}")
+                        count +=1
+
+                if count == 0:
+                    print(f"Error: Item or tag '{user_input}' not found.")
 
     def add_item(self, item: tuple) -> None:
         """add an item to the inventory, either in detailed mode or with a tuple of values"""
@@ -339,6 +362,9 @@ class Inventory:
         if not self.check_name(name):
             return
         
+        if not name:
+            return
+        
         selected = name if name.endswith(".json") else f"{name}.json"
 
         if name == "params":
@@ -373,6 +399,9 @@ class Inventory:
 
         if not self.check_name(name):
             return
+        
+        if not name:
+            return
 
         selected = os.path.join(self.path, f"{name}.json")
 
@@ -406,6 +435,14 @@ class Inventory:
         """create a json file with given name"""
 
         if not self.check_name(name):
+            return
+        
+        if len(name) == 0 or not name:
+            print("Error: Please provide a valid file name.")
+            return
+        
+        if name.lower() in {"all", "a"}:
+            print(f"Error: Can't name an inventory file {name}")
             return
 
         path = os.path.join(self.path, f"{name}.json")
